@@ -37,4 +37,6 @@ def get_current_user(
         raise credentials_exception
 
     user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise credentials_exception
     return user

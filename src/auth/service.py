@@ -2,16 +2,12 @@ import os
 import jwt
 from typing import Annotated
 from src.entities import User
+from datetime import timedelta
 from sqlalchemy.orm import Session
 from fastapi import (
     HTTPException, 
     status, 
     Form
-)
-from datetime import (
-    timedelta, 
-    timezone, 
-    datetime
 )
 from .model import (
     UserRegister, 
@@ -61,6 +57,4 @@ def login_user(user_login: Annotated[UserLogin, Form()], db: Session) -> Token:
 
 def read_user_me(current_user):
     print("-------Hello World inside read user me----------")
-    if current_user is None:
-        raise Exception(detail="User not found", status=status.HTTP_404_NOT_FOUND)
     return current_user
