@@ -29,7 +29,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 def register_user(user: UserRegister, db: Session):
     db_user = db.query(User).filter(User.email == user.email)
-    if db_user:
+    if db_user.first():
         raise UserCreationException()
     new_user = User(
         email=user.email,
