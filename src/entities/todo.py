@@ -7,9 +7,10 @@ from sqlalchemy import (
     DateTime,
     Date,
     Boolean,
-    Enum as SQLEnum
+    Enum as SQLEnum,
+    ForeignKey
 )
-
+from .user import User
 from zoneinfo import ZoneInfo
 from datetime import datetime
 
@@ -38,5 +39,6 @@ class Task(Base):
     due_date = Column(Date)
     status = Column(SQLEnum(TaskStatusEnum, name="status_enum"), nullable=False, default=TaskStatusEnum.pending)
     is_completed = Column(Boolean, default=False)
+    created_by = Column(Integer, ForeignKey(User.id), nullable=False)
     created_at = Column(DateTime(timezone=True), default=now_in_timezone)
     updated_at = Column(DateTime(timezone=True), default=now_in_timezone, onupdate=now_in_timezone)

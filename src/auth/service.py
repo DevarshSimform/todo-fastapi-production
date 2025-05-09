@@ -4,6 +4,8 @@ from typing import Annotated
 from src.entities import User
 from datetime import timedelta
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
+from ..exception import UserNotFound, UserCreationException
 from fastapi import (
     HTTPException, 
     status, 
@@ -26,6 +28,9 @@ from .utils import (
 ACCESS_TOKEN_EXPIRE_MINUTES = os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")
 
 def register_user(user: UserRegister, db: Session):
+    db_user = db.query(User).filter(User.email == user.email)
+    if db_user:
+        raise UserCreationException()
     new_user = User(
         email=user.email,
         username=user.username,
@@ -42,9 +47,9 @@ def register_user(user: UserRegister, db: Session):
 def login_user(user_login: Annotated[UserLogin, Form()], db: Session) -> Token:
     user = db.query(User).filter(User.email == user_login.email).first()
     if not user:
-        raise HTTPException(status_code=400, detail="Invalid username or password")
+        raise UserNotFound()
     if not verify_password(user_login.password, user.password_hash):
-        raise HTTPException(status_code=400, detail="Invalid username or password")
+        raise UserNotFound()
     access_token_expires = timedelta(minutes=int(ACCESS_TOKEN_EXPIRE_MINUTES))
     access_token = create_access_token(
         data={"sub": user.email},

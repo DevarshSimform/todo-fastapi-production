@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, model_validator
 from datetime import datetime, date
 from enum import Enum
 from ..entities import PriorityEnum, TaskStatusEnum
@@ -23,6 +23,12 @@ class TaskIn(BaseModel):
             raise ValueError('Due date must be in the future')
         return value
     
+    @model_validator(mode="after")
+    def change_case(self):
+        self.title = self.title.lower()
+        self.description = self.description.lower()
+        return self
+
 
 class TaskResponse(BaseModel):
     title: str
@@ -39,6 +45,9 @@ class TaskResponse(BaseModel):
             datetime: lambda value: value.strftime("%Y-%m-%d %H:%M:%S")
         }
 
+class TaskRetrieveResponse(TaskResponse):
+    id: int
+    is_completed: bool
 
 class TaskComplete(BaseModel):
     is_completed: bool

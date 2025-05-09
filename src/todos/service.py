@@ -1,32 +1,41 @@
 from ..dependency.db import get_db
+from sqlalchemy.orm import Session
+from datetime import date
 from . import (
     TaskIn,
     TaskResponse, 
     TaskComplete
 )
-from fastapi import (
-    Depends, 
-    HTTPException, 
-    status
+from src.entities import (
+    Task, 
+    TaskStatusEnum, 
+    PriorityEnum, 
+    User
 )
-from ..entities import Task, TaskStatusEnum, PriorityEnum
-from sqlalchemy.orm import Session
-from datetime import date
+from ..exception import (
+    TaskNotFound, 
+    UnAuthorisedForTaskUpdate, 
+    UnChangeableTask
+)
+from .utils import update_task_status
 
 
 
-
-def get_todos(db: Session):
-    tasks = db.query(Task).all()
+def get_todos(user: User, db: Session):
+    tasks = db.query(Task).filter(Task.created_by==user.id)
+    if len(list(tasks)) == 0:
+        print("-----------INSIDE LOOP-------------")
+        raise TaskNotFound()
     return tasks
 
 
-def create_todo(task: TaskIn, db: Session):
+def create_todo(task: TaskIn, user: User, db: Session):
     new_task = Task(
         title=task.title,
         description=task.description,
         priority=task.priority,
-        due_date=task.due_date
+        due_date=task.due_date,
+        created_by = user.id
     )
     db.add(new_task)
     db.commit()
@@ -34,45 +43,46 @@ def create_todo(task: TaskIn, db: Session):
     return new_task
 
 
-def get_todo_by_id(id: int, db: Session):
-    task = db.query(Task).filter(Task.id == id).first()
+def get_todo_by_id(id: int, user: User, db: Session):
+    task = db.query(Task).filter(Task.id==id, Task.created_by==user.id).first()
     if not task:
-        pass
+        raise TaskNotFound(id)
     return task
 
 
-def update_todo(id: int, task: TaskIn, db: Session):
-    db_task = db.query(Task).filter(Task.id == id)
+def update_todo(id: int, task: TaskIn, user: User, db: Session):
+    db_task = db.query(Task).filter(Task.id==id, Task.created_by==user.id)
     if not db_task.first():
-        pass
+        raise TaskNotFound(id)
     db_task.update(task.model_dump(), synchronize_session=False)
     db.commit()
     return db_task.first()
     
 
-def change_todo_status(id: int, task: TaskComplete, db: Session):
+def change_todo_status(id: int, task: TaskComplete, user: User, db: Session): 
     db_task = db.query(Task).get(id)
     if not db_task:
-        pass
-    if db_task.status == TaskStatusEnum.success and db_task.due_date >= date.today() and task.is_completed == False:
-        db_task.status = TaskStatusEnum.pending
-    elif db_task.status == TaskStatusEnum.failed or db_task.status == TaskStatusEnum.success:   
-        raise HTTPException(
-            detail=f"Cannot change the status to success because the task is already done",
-            status_code = status.HTTP_400_BAD_REQUEST
-        )
+        raise TaskNotFound(id)
+    if db_task.created_by != user.id:
+        raise UnAuthorisedForTaskUpdate()
+    if db_task.status == TaskStatusEnum.success or db_task.status == TaskStatusEnum.failed:
+        raise UnChangeableTask()
+
     db_task.is_completed = task.is_completed
-    if task.is_completed == True and db_task.due_date >= date.today():
+    if db_task.is_completed == True:
         db_task.status = TaskStatusEnum.success
+    else:
+        db_task.status = TaskStatusEnum.failed
+
     db.commit()
     db.refresh(db_task)
     return db_task 
 
 
-def delete_todo(id: int, db: Session):
-    db_task = db.query(Task).filter(Task.id == id)
+def delete_todo(id: int, user: User, db: Session):
+    db_task = db.query(Task).filter(Task.id == id, Task.created_by == user.id)
     if not db_task.first():
-        pass
+        raise TaskNotFound(id)
     db_task.delete()
     db.commit()
     return {"detial": "Task deleted successfully"}
