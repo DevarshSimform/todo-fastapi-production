@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from src.todos.controller import router as todo_router
 from src.auth.controller import router as auth_router
 from src.database import Base, engine
-from utils.init_db import create_tables
+from src.entities import Task, User
 
 
 app = FastAPI()
@@ -25,8 +25,9 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup() -> None:
-    create_tables()
-    
+    Task.metadata.create_all(bind=engine)
+    User.metadata.create_all(bind=engine)
+
 
 def main():
     Base.metadata.create_all(engine)
